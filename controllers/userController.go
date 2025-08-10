@@ -11,8 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
-
 
 
 func SignUp(c *gin.Context){
@@ -112,7 +112,10 @@ func Login(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("Authorization", tokenString, 3600 * 24 * 7, "", "", false, true)
 
-	c.JSON(http.StatusOK, gin.H{"message": "User Successfully Logged In!"})
+	c.JSON(http.StatusOK, gin.H{
+    "message": "User Successfully Logged In!",
+    "token": tokenString,
+})
 }
 
 
@@ -121,4 +124,26 @@ func Logout(c *gin.Context){
 	c.SetCookie("Authorization", "", -1, "", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "User successfully logged out"})
+}
+
+
+func GetUserDetails(c *gin.Context) {
+	u, exists := c.Get("user")
+
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Not Authorized to perform this action!"})
+		return;
+	}
+
+	user := u.(models.User)
+
+	if err := initializers.DBClient.Select("ID", "Name", "Email").Preload("Categories", func (db *gorm.DB) *gorm.DB {
+		return db.Select("Name", "ID", "UserID")
+	}).Preload("Transactions").First(&user, user.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": user})
+
 }
