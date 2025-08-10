@@ -41,6 +41,7 @@ func main() {
 	router.POST("/create/transaction/:id", middleware.ValidateAuth, controllers.CreateTransaction)
 	router.PATCH("/update/transaction/:categoryId/:id", middleware.ValidateAuth, controllers.UpdateTransaction)
 	router.DELETE("/delete/transaction/:categoryId/:id", middleware.ValidateAuth, controllers.DeleteTransaction)
+	router.GET("/transaction/summary", middleware.ValidateAuth, controllers.TransactionSummary)
 
 	router.Run(":" + port)
 }

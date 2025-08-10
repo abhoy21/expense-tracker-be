@@ -154,3 +154,35 @@ func DeleteTransaction(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction deleted successfully", "rowsAffected": result.RowsAffected})
 }
+
+func TransactionSummary(c *gin.Context) {
+	u, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized to perform this action"})
+		return
+	}
+	user := u.(models.User)
+
+	var totalIncome float64
+	var totalExpenditure float64
+
+	if err := initializers.DBClient.Model(&models.Transaction{}).Where("user_id = ? AND amount > 0", user.ID).Select("COALESCE(SUM(amount), 0)").Scan(&totalIncome).Error; err != nil {
+		c.JSON(http.StatusInternalServerError,  gin.H{"error": "Failed to calculate total income"})
+		return
+	}
+
+	if err := initializers.DBClient.Model(&models.Transaction{}).
+		Where("user_id = ? AND amount < 0", user.ID).
+		Select("COALESCE(SUM(amount), 0)").Scan(&totalExpenditure).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate total expenditure"})
+		return
+	}
+
+	totalExpenditureAbs := -totalExpenditure
+	totalBalance := totalIncome - totalExpenditureAbs
+	c.JSON(http.StatusOK, gin.H{
+		"total_balance":    totalBalance,
+		"total_income":     totalIncome,
+		"total_expenditure": totalExpenditureAbs,
+	})
+}
